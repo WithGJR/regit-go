@@ -48,6 +48,16 @@ func main() {
 			os.Exit(1)
 		}
 		regit.Checkout(os.Args[2:])
+	case "branch":
+		if len(os.Args) == 2 {
+			fmt.Println("Error: you need to specify the branch name")
+			os.Exit(1)
+		}
+		if len(os.Args) > 3 {
+			fmt.Println("Error: you can only specify one branch name")
+			os.Exit(1)
+		}
+		regit.CreateBranch(os.Args[2])
 	default:
 		fmt.Println("'" + os.Args[1] + "' is not a ReGit command.")
 	}

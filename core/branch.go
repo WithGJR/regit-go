@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 )
@@ -36,6 +37,10 @@ func (branch *Branch) SetCommit(commit string) {
 }
 
 func (branch *Branch) Write() {
+	if branch.commitSHA1 == "" {
+		fmt.Printf("Error: branch can not be created without any commit")
+		return
+	}
 	err := ioutil.WriteFile(branch.rootDir+"/.git/refs/heads/"+branch.name, []byte(branch.commitSHA1+"\n"), 0644)
 	if err != nil {
 		log.Fatal(err)

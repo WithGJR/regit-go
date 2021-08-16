@@ -169,3 +169,19 @@ func (regit *ReGit) Checkout(path_names []string) {
 	}
 	fmt.Println("Updated " + strconv.Itoa(len(path_names)) + " path from the index")
 }
+
+func (regit *ReGit) CreateBranch(name string) {
+	head := NewHEAD(regit.RootDir)
+	head.Read()
+
+	new_branch := NewBranch(name, regit.RootDir)
+	if head.PointsToBranch {
+		current_branch := NewBranch(head.Content, regit.RootDir)
+		current_branch.Read()
+
+		new_branch.SetCommit(current_branch.Commit())
+	} else {
+		new_branch.SetCommit(head.Content)
+	}
+	new_branch.Write()
+}

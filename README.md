@@ -14,3 +14,5 @@ This project does not aim at implementing all the features of Git. It is just an
   * Ex: `regit-go commit -m "init commit"`
 * `regit-go checkout [path names]`
   * Ex: `regit-go checkout code/main.py code/lib/util.py`
+* `regit-go branch [branch name]`
+  * Ex: `regit-go branch develop`
