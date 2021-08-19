@@ -185,3 +185,19 @@ func (regit *ReGit) CreateBranch(name string) {
 	}
 	new_branch.Write()
 }
+
+func (regit *ReGit) Log() {
+	head := NewHEAD(regit.RootDir)
+	head.Read()
+
+	root_commit := NewCommitObject(regit.RootDir)
+	if head.PointsToBranch {
+		current_branch := NewBranch(head.Content, regit.RootDir)
+		current_branch.Read()
+		root_commit.ReadFromExistingObject(current_branch.Commit())
+	} else {
+		root_commit.ReadFromExistingObject(head.Content)
+	}
+	cg := NewCommitGraph(root_commit)
+	cg.PrintCommitLogs(regit.RootDir)
+}

@@ -69,7 +69,7 @@ func (obj *GitObject) readFromExistingObject() {
 	if header_end_index+1 <= len([]byte(obj.typ+" ")) {
 		log.Fatal("Error: " + obj.typ + " object '" + sha1_name + "' header is broken")
 	}
-	
+
 	content_size_str := decompressed_content[len([]byte(obj.typ+" ")):header_end_index]
 	content_size, err := strconv.Atoi(string(content_size_str))
 	if err != nil {
@@ -150,28 +150,81 @@ func NewCommitObject(rootDir string) *CommitObject {
 	return commit
 }
 
+func (commit *CommitObject) ReadFromExistingObject(sha1Name string) {
+	hashed_filename, err := hex.DecodeString(sha1Name)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	commit.Obj.HashedFilename = hashed_filename
+	commit.Obj.readFromExistingObject()
+	lines := strings.Split(string(commit.Obj.content), "\n")
+	if len(lines) < 5 {
+		log.Fatal("Error: " + sha1Name + " is not a valid commit object")
+	}
+	tree_line := lines[0]
+	if strings.Index(tree_line, "tree ") != 0 {
+		log.Fatal("Error: " + sha1Name + " is not a valid commit object")
+	}
+	commit.SetTree(tree_line[len("tree "):])
+
+	next_not_parent_index := 1
+	parents := make([]string, 0)
+	for i := 1; i < len(lines); i++ {
+		if !strings.Contains(lines[i], "parent ") {
+			next_not_parent_index = i
+			break
+		}
+		parents = append(parents, lines[i][len("parent "):])
+	}
+	commit.SetParents(parents)
+
+	author_line := lines[next_not_parent_index]
+	commit.SetAuthor(author_line[len("author "):])
+
+	committer_line := lines[next_not_parent_index+1]
+	commit.SetCommitter(committer_line[len("committer "):])
+
+	// a '\n' character
+	if lines[next_not_parent_index+2] != "" {
+		log.Fatal("Error: " + sha1Name + " is not a valid commit object")
+	}
+
+	message := strings.Join(lines[next_not_parent_index+3:], "\n")
+	commit.SetMessage(message)
+
+	commit.GenerateContent()
+}
+
 func (commit *CommitObject) SetTree(tree string) {
-	commit.tree = "tree " + tree + "\n"
+	commit.tree = tree
 }
 
 func (commit *CommitObject) SetParents(parents []string) {
-	for _, parent := range parents {
-		commit.parents = append(commit.parents, "parent "+parent+"\n")
-	}
+	commit.parents = append(commit.parents, parents...)
 }
 
 func (commit *CommitObject) SetAuthor(author string) {
-	commit.author = "author " + author + "\n"
+	commit.author = author
 }
 
 func (commit *CommitObject) SetCommitter(committer string) {
-	commit.committer = "committer " + committer + "\n"
+	commit.committer = committer
 }
 
 func (commit *CommitObject) SetMessage(message string) {
-	commit.message = message + "\n"
+	commit.message = message
 }
 
 func (commit *CommitObject) GenerateContent() {
-	commit.Obj.content = []byte(commit.tree + strings.Join(commit.parents, "") + commit.author + commit.committer + "\n" + commit.message)
+	content := make([]byte, 0)
+	content = append(content, []byte("tree "+commit.tree+"\n")...)
+	for _, parent := range commit.parents {
+		content = append(content, []byte("parent "+parent+"\n")...)
+	}
+	content = append(content, []byte("author "+commit.author+"\n")...)
+	content = append(content, []byte("committer "+commit.committer+"\n")...)
+	content = append(content, []byte("\n")...)
+	content = append(content, []byte(commit.message+"\n")...)
+	commit.Obj.content = content
 }

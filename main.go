@@ -58,6 +58,12 @@ func main() {
 			os.Exit(1)
 		}
 		regit.CreateBranch(os.Args[2])
+	case "log":
+		if len(os.Args) > 3 {
+			fmt.Println("Error: `log` command does not accept arguments")
+			os.Exit(1)
+		}
+		regit.Log()
 	default:
 		fmt.Println("'" + os.Args[1] + "' is not a ReGit command.")
 	}

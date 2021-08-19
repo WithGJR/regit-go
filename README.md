@@ -16,3 +16,5 @@ This project does not aim at implementing all the features of Git. It is just an
   * Ex: `regit-go checkout code/main.py code/lib/util.py`
 * `regit-go branch [branch name]`
   * Ex: `regit-go branch develop`
+* `regit-go log` 
+  * It will invoke the `less` command to print the commit logs

@@ -22,13 +22,13 @@ type GraphNode struct {
 }
 
 type Graph struct {
-	adjacencyList []GraphNode
+	adjacencyList []*GraphNode
 	handles       map[string]int
 }
 
 func NewGraph() *Graph {
 	graph := new(Graph)
-	graph.adjacencyList = make([]GraphNode, 0)
+	graph.adjacencyList = make([]*GraphNode, 0)
 	graph.handles = make(map[string]int)
 	return graph
 }
@@ -45,7 +45,7 @@ func (graph *Graph) AddNode(typ string, name string, sha1Name []byte) {
 	node.sha1Name = sha1Name
 	node.list = nil
 
-	graph.adjacencyList = append(graph.adjacencyList, *node)
+	graph.adjacencyList = append(graph.adjacencyList, node)
 	graph.handles[node.name] = len(graph.adjacencyList) - 1
 }
 
@@ -54,7 +54,7 @@ func (graph *Graph) LookUpNode(name string) (*GraphNode, bool) {
 	if !ok {
 		return nil, false
 	}
-	return &(graph.adjacencyList[index]), true
+	return graph.adjacencyList[index], true
 }
 
 func (graph *Graph) AddEdge(source string, target string) {
@@ -95,7 +95,7 @@ func (graph *Graph) DFS(before_callback func(*GraphNode), after_callback func(*G
 		graph.adjacencyList[i].color = White
 	}
 	for i := 0; i < len(graph.adjacencyList); i++ {
-		node := &(graph.adjacencyList[i])
+		node := graph.adjacencyList[i]
 		if node.color == White {
 			graph.dfs_visit(node, before_callback, after_callback)
 		}
@@ -117,4 +117,33 @@ func (graph *Graph) dfs_visit(node *GraphNode, before_callback func(*GraphNode),
 	}
 	node.color = Black
 	after_callback(node)
+}
+
+func (graph *Graph) BFS(source_node *GraphNode, before_callback func(*GraphNode), after_callback func(*GraphNode)) {
+	// Initialization
+	for i := 0; i < len(graph.adjacencyList); i++ {
+		graph.adjacencyList[i].color = White
+	}
+	source_node.color = Gray
+
+	queue := NewQueue(50)
+	queue.Enqueue(source_node)
+	for !queue.IsEmpty() {
+		item := queue.Dequeue()
+		node := item.(*GraphNode)
+		before_callback(node)
+
+		list := node.list
+		for list != nil {
+			child_node, _ := graph.LookUpNode(list.name)
+			if child_node.color == White {
+				child_node.color = Gray
+				queue.Enqueue(child_node)
+			}
+			list = list.next
+		}
+		node.color = Black
+		after_callback(node)
+	}
+
 }
