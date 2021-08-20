@@ -198,6 +198,6 @@ func (regit *ReGit) Log() {
 	} else {
 		root_commit.ReadFromExistingObject(head.Content)
 	}
-	cg := NewCommitGraph(root_commit)
-	cg.PrintCommitLogs(regit.RootDir)
+	cg := NewCommitGraph(root_commit, regit.RootDir)
+	cg.PrintCommitLogs()
 }
