@@ -194,6 +194,10 @@ func (regit *ReGit) Log() {
 	if head.PointsToBranch {
 		current_branch := NewBranch(head.Content, regit.RootDir)
 		current_branch.Read()
+		if len(current_branch.Commit()) == 0 {
+			fmt.Println("Error: your current branch '" + head.Content + "' does not have any commits yet")
+			os.Exit(1)
+		}
 		root_commit.ReadFromExistingObject(current_branch.Commit())
 	} else {
 		root_commit.ReadFromExistingObject(head.Content)
