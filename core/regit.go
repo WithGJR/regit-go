@@ -174,6 +174,11 @@ func (regit *ReGit) CreateBranch(name string) {
 	head := NewHEAD(regit.RootDir)
 	head.Read()
 
+	if head.Content == "" {
+		fmt.Println("Error: not a git repository")
+		os.Exit(1)
+	}
+
 	new_branch := NewBranch(name, regit.RootDir)
 	if head.PointsToBranch {
 		current_branch := NewBranch(head.Content, regit.RootDir)
@@ -189,6 +194,11 @@ func (regit *ReGit) CreateBranch(name string) {
 func (regit *ReGit) Log() {
 	head := NewHEAD(regit.RootDir)
 	head.Read()
+
+	if head.Content == "" {
+		fmt.Println("Error: not a git repository")
+		os.Exit(1)
+	}
 
 	root_commit := NewCommitObject(regit.RootDir)
 	if head.PointsToBranch {
