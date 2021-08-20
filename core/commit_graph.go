@@ -31,7 +31,7 @@ func NewCommitGraph(root_commit *CommitObject) *CommitGraph {
 func (cg *CommitGraph) PrintCommitLogs(rootDir string) {
 	root_commit_node, _ := cg.graph.LookUpNode(cg.rootCommitName)
 
-	input_to_less_command := ""
+	msg_content_builder := new(strings.Builder)
 	cg.graph.BFS(root_commit_node, func(node *GraphNode) {
 		current_commit := cg.commits[node.name]
 		for _, parent_sha1 := range current_commit.parents {
@@ -42,20 +42,20 @@ func (cg *CommitGraph) PrintCommitLogs(rootDir string) {
 			cg.graph.AddEdge(node.name, parent_sha1)
 		}
 		// print in yellow
-		input_to_less_command += fmt.Sprintf("\033[33mcommit %s\033[0m\n", hex.EncodeToString(current_commit.Obj.HashedFilename))
-		input_to_less_command += fmt.Sprintln("Author:  " + current_commit.author)
-		input_to_less_command += fmt.Sprintln("Committer:  " + current_commit.committer)
-		input_to_less_command += "\n"
+		msg_content_builder.WriteString(fmt.Sprintf("\033[33mcommit %s\033[0m\n", hex.EncodeToString(current_commit.Obj.HashedFilename)))
+		msg_content_builder.WriteString(fmt.Sprintln("Author:  " + current_commit.author))
+		msg_content_builder.WriteString(fmt.Sprintln("Committer:  " + current_commit.committer))
+		msg_content_builder.WriteString("\n")
 		for _, line := range strings.Split(current_commit.message, "\n") {
-			input_to_less_command += fmt.Sprintf("\t%s\n", line)
+			msg_content_builder.WriteString(fmt.Sprintf("\t%s\n", line))
 		}
-		input_to_less_command += "\n"
+		msg_content_builder.WriteString("\n")
 	}, func(node *GraphNode) {
 		// nothing to do
 	})
 
 	// invoke the 'less' command to print the output
-	reader := bytes.NewReader([]byte(input_to_less_command))
+	reader := bytes.NewReader([]byte(msg_content_builder.String()))
 	less_cmd := exec.Command("less")
 	less_cmd.Stdin = reader
 	less_cmd.Stdout = os.Stdout
