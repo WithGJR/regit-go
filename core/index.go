@@ -186,6 +186,9 @@ func (index *Index) Read() {
 		// while keeping the name NUL-terminated.
 		// count trailing null bytes
 		for next_index := current_index + 62 + len(entry.Path); next_index < len(content) && content[next_index] == byte(0); next_index++ {
+			if (62+len(entry.Path)+trailing_null_byte_count)%8 == 0 {
+				break
+			}
 			trailing_null_byte_count++
 		}
 		current_index = current_index + 62 + len(entry.Path) + trailing_null_byte_count
