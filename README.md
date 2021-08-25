@@ -4,6 +4,8 @@ ReGit is a tiny Git implementation written in Golang. It uses the same underlyin
 
 This project does not aim at implementing all the features of Git. It is just an experimental implementation for learning purpose.
 
+**Note**: This project is still under active development. Many of the details haven't been handled carefully. Also, it has been tested on macOS only.
+
 ## Available Commands
 
 * `regit-go init`
@@ -18,3 +20,5 @@ This project does not aim at implementing all the features of Git. It is just an
   * Ex: `regit-go branch develop`
 * `regit-go log` 
   * It will invoke the `less` command to print the commit logs
+* `regit-go merge [branch name]`
+  * Currently, only fast-forward merge is supported

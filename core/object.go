@@ -110,27 +110,130 @@ func (blob *BlobObject) ReadFromExistingObject(sha1Name string) {
 	blob.Obj.readFromExistingObject()
 }
 
+type TreeEntry struct {
+	FileType       string
+	FileName       string
+	HashedFilename []byte
+}
+
 type TreeObject struct {
-	Obj     GitObject
-	Entries [][]byte
+	Obj             GitObject
+	Entries         []*TreeEntry
+	DescendentTrees map[string]*TreeObject
 }
 
 func NewTreeObject(rootDir string) *TreeObject {
 	tree := new(TreeObject)
 	tree.Obj.typ = "tree"
 	tree.Obj.rootDir = rootDir
-	tree.Entries = make([][]byte, 0)
+	tree.Entries = make([]*TreeEntry, 0)
+	tree.DescendentTrees = make(map[string]*TreeObject)
 	return tree
 }
 
-func (tree *TreeObject) WriteEntries(entries [][]byte) {
+func (tree *TreeObject) WriteEntries(entries []*TreeEntry) {
 	tree.Entries = append(tree.Entries, entries...)
 
 	var buf bytes.Buffer
 	for _, entry := range tree.Entries {
-		buf.Write(entry)
+		buf.WriteString(entry.FileType + " " + entry.FileName + "\000")
+		buf.Write(entry.HashedFilename)
 	}
 	tree.Obj.content = buf.Bytes()
+}
+
+func (tree *TreeObject) ReadFromExistingObject(sha1Name string) {
+	hashed_filename, err := hex.DecodeString(sha1Name)
+	if err != nil {
+		log.Fatal(err)
+	}
+	tree.Obj.HashedFilename = hashed_filename
+	tree.Obj.readFromExistingObject()
+
+	current_index := 0
+	for current_index < len(tree.Obj.content) {
+		first_part_end_index := bytes.Index(tree.Obj.content[current_index:], []byte("\000"))
+		first_part := tree.Obj.content[current_index : current_index+first_part_end_index]
+		second_part := tree.Obj.content[current_index+first_part_end_index+1 : current_index+first_part_end_index+1+20]
+
+		splitted_first_part := bytes.Split(first_part, []byte(" "))
+		file_type := string(splitted_first_part[0])
+
+		file_name := splitted_first_part[1]
+
+		entry := new(TreeEntry)
+		entry.FileType = file_type
+		entry.FileName = string(file_name)
+		entry.HashedFilename = second_part
+		tree.Entries = append(tree.Entries, entry)
+
+		current_index += first_part_end_index + 20 + 1
+	}
+}
+
+func (tree *TreeObject) RecursiveRead(sha1Name string) {
+	tree.ReadFromExistingObject(sha1Name)
+	for _, entry := range tree.Entries {
+		file_type, err := strconv.Atoi(entry.FileType)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if file_type == 40000 {
+			sub_tree := NewTreeObject(tree.Obj.rootDir)
+			sub_tree.RecursiveRead(hex.EncodeToString(entry.HashedFilename))
+			tree.DescendentTrees[hex.EncodeToString(sub_tree.Obj.HashedFilename)] = sub_tree
+			for key, value := range sub_tree.DescendentTrees {
+				tree.DescendentTrees[key] = value
+			}
+		}
+	}
+}
+
+func (tree *TreeObject) construct_file_path_names(entries []*TreeEntry, root_path string) []string {
+	path_names := make([]string, 0)
+
+	for _, entry := range entries {
+		file_type, err := strconv.Atoi(entry.FileType)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if file_type == 40000 {
+			current_entry_tree := tree.DescendentTrees[hex.EncodeToString(entry.HashedFilename)]
+			child_path_names := tree.construct_file_path_names(current_entry_tree.Entries, root_path+entry.FileName+"/")
+			path_names = append(path_names, child_path_names...)
+		} else {
+			path_names = append(path_names, root_path+entry.FileName)
+		}
+	}
+	return path_names
+}
+
+// return all file path names stored by the tree object
+func (tree *TreeObject) FilePathNames() []string {
+	return tree.construct_file_path_names(tree.Entries, "")
+}
+
+func (tree *TreeObject) construct_files_SHA1(entries []*TreeEntry) [][]byte {
+	object_ids := make([][]byte, 0)
+	for _, entry := range entries {
+		file_type, err := strconv.Atoi(entry.FileType)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if file_type == 40000 {
+			current_entry_tree := tree.DescendentTrees[hex.EncodeToString(entry.HashedFilename)]
+			object_ids = append(object_ids, tree.construct_files_SHA1(current_entry_tree.Entries)...)
+		} else {
+			object_ids = append(object_ids, entry.HashedFilename)
+		}
+	}
+	return object_ids
+}
+
+func (tree *TreeObject) FilesSHA1() [][]byte {
+	return tree.construct_files_SHA1(tree.Entries)
 }
 
 type CommitObject struct {

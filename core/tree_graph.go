@@ -1,7 +1,6 @@
 package core
 
 import (
-	"bytes"
 	"strings"
 )
 
@@ -63,16 +62,17 @@ func (tg *TreeGraph) ConstructTreeObjects(rootDir string) []byte {
 		list := node.list
 		for list != nil {
 			child_node, _ := tg.graph.LookUpNode(list.name)
-			var entry bytes.Buffer
 
 			path := strings.Split(child_node.name, "/")
+			entry := new(TreeEntry)
 			if child_node.typ == "tree" {
-				entry.Write([]byte("040000 " + path[len(path)-1] + "\000"))
+				entry.FileType = "040000"
 			} else {
-				entry.Write([]byte("100644 " + path[len(path)-1] + "\000"))
+				entry.FileType = "100644"
 			}
-			entry.Write(child_node.sha1Name)
-			tree.WriteEntries([][]byte{entry.Bytes()})
+			entry.FileName = path[len(path)-1]
+			entry.HashedFilename = child_node.sha1Name
+			tree.WriteEntries([]*TreeEntry{entry})
 
 			list = list.next
 		}

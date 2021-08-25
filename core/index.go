@@ -92,9 +92,13 @@ type IndexEntry struct {
 	Path []byte
 }
 
+func (entry *IndexEntry) Stage() uint16 {
+	return (entry.Flags >> 12) & 0x03
+}
+
 type Index struct {
 	header   IndexHeader
-	entries  []IndexEntry
+	entries  []*IndexEntry
 	checksum []byte
 	rootDir  string
 }
@@ -109,12 +113,12 @@ func NewIndex(rootDir string) *Index {
 	}
 	index.header.version_number = version_num
 	index.header.entries_count = 0
-	index.entries = make([]IndexEntry, 0)
+	index.entries = make([]*IndexEntry, 0)
 	index.rootDir = rootDir
 	return index
 }
 
-func (index *Index) Entries() []IndexEntry {
+func (index *Index) Entries() []*IndexEntry {
 	return index.entries
 }
 
@@ -192,7 +196,7 @@ func (index *Index) Read() {
 			trailing_null_byte_count++
 		}
 		current_index = current_index + 62 + len(entry.Path) + trailing_null_byte_count
-		index.entries = append(index.entries, *entry)
+		index.entries = append(index.entries, entry)
 	}
 	index.checksum = content[current_index:]
 }
@@ -214,7 +218,7 @@ func (index *Index) Save() {
 		fields := []string{"Ctime_sec", "Ctime_nanosec", "Mtime_sec", "Mtime_nanosec", "Dev", "Ino", "Mode", "Uid", "Gid", "File_size"}
 
 		for _, field := range fields {
-			p := reflect.ValueOf(&entry).Elem()
+			p := reflect.ValueOf(entry).Elem()
 
 			num, err := index.transform_number_to_network_bytes(p.FieldByName(field).Interface())
 			if err != nil {
@@ -260,6 +264,25 @@ func (index *Index) hasEntry(path_name []byte) int {
 	return -1
 }
 
+func (index *Index) sortEntries() {
+	keys := make([]string, index.header.entries_count)
+	keys_to_index_map := make(map[string]int)
+	var i uint32
+	for i = 0; i < index.header.entries_count; i++ {
+		keys[i] = string(index.entries[i].Path)
+		keys_to_index_map[string(index.entries[i].Path)] = int(i)
+	}
+	sort.Strings(keys)
+
+	sortedEntries := make([]*IndexEntry, index.header.entries_count)
+	for i = 0; i < index.header.entries_count; i++ {
+		sortedEntries[i] = index.entries[keys_to_index_map[keys[i]]]
+	}
+	for i = 0; i < index.header.entries_count; i++ {
+		index.entries[i] = sortedEntries[i]
+	}
+}
+
 func (index *Index) WriteEntries(path_names []string, object_ids [][]byte) {
 	for i, path := range path_names {
 		file, err := os.Open(path)
@@ -295,27 +318,28 @@ func (index *Index) WriteEntries(path_names []string, object_ids [][]byte) {
 
 		// if the entry is existing
 		if i := index.hasEntry(entry.Path); i != -1 {
-			index.entries[i] = *entry
+			index.entries[i] = entry
 		} else {
-			index.entries = append(index.entries, *entry)
+			index.entries = append(index.entries, entry)
 		}
 	}
 	index.header.entries_count = uint32(len(index.entries))
+	index.sortEntries()
+}
 
-	keys := make([]string, index.header.entries_count)
-	keys_to_index_map := make(map[string]int)
-	var i uint32
-	for i = 0; i < index.header.entries_count; i++ {
-		keys[i] = string(index.entries[i].Path)
-		keys_to_index_map[string(index.entries[i].Path)] = int(i)
+func (index *Index) WriteEmptyStatEntries(path_names []string, object_ids [][]byte, stages []uint16) {
+	for i, path_name := range path_names {
+		entry := new(IndexEntry)
+		entry.Obj_name = object_ids[i]
+		entry.Flags = stages[i] << 12
+		entry.Path = []byte(path_name + "\000")
+		index.entries = append(index.entries, entry)
 	}
-	sort.Strings(keys)
+	index.header.entries_count = uint32(len(index.entries))
+	index.sortEntries()
+}
 
-	sortedEntries := make([]IndexEntry, index.header.entries_count)
-	for i = 0; i < index.header.entries_count; i++ {
-		sortedEntries[i] = index.entries[keys_to_index_map[keys[i]]]
-	}
-	for i = 0; i < index.header.entries_count; i++ {
-		index.entries[i] = sortedEntries[i]
-	}
+func (index *Index) ClearEntries() {
+	index.entries = nil
+	index.entries = make([]*IndexEntry, 0)
 }

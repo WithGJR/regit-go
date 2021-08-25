@@ -64,6 +64,12 @@ func main() {
 			os.Exit(1)
 		}
 		regit.Log()
+	case "merge":
+		if len(os.Args) > 3 {
+			fmt.Println("Error: you can only supply one branch name")
+			os.Exit(1)
+		}
+		regit.Merge(os.Args[2])
 	default:
 		fmt.Println("'" + os.Args[1] + "' is not a ReGit command.")
 	}
