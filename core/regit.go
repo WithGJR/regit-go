@@ -247,6 +247,11 @@ func (regit *ReGit) Merge(target_branch_name string) {
 	target_branch_commit := NewCommitObject(regit.RootDir)
 	target_branch_commit.ReadFromExistingObject(target_branch.Commit())
 
+	if bytes.Equal(current_branch_commit.Obj.HashedFilename, target_branch_commit.Obj.HashedFilename) {
+		fmt.Println("Already up to date.")
+		os.Exit(0)
+	}
+
 	current_branch_commit_graph := NewCommitGraph(current_branch_commit, regit.RootDir)
 	current_branch_commits := current_branch_commit_graph.LoadAllCommits()
 	current_branch_commits_index := make(map[string]int)
@@ -292,7 +297,6 @@ func (regit *ReGit) Merge(target_branch_name string) {
 
 		index := NewIndex(regit.RootDir)
 		path_names := target_branch_commit_tree.FilePathNames()
-
 		object_ids := target_branch_commit_tree.FilesSHA1()
 		stages := make([]uint16, len(path_names))
 		for i := 0; i < len(stages); i++ {
